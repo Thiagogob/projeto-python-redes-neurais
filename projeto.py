@@ -17,6 +17,16 @@ janela.geometry("700x600")
 frame_principal = tk.Frame(janela)
 frame_principal.pack(fill="both", expand=True)
 
+def mostrar_tela_inicial():
+    limpar_tela()
+    tk.Label(frame_principal, text="Menu Principal", font=("Arial", 18)).pack(pady=30)
+
+    tk.Button(frame_principal, text="Criar modelo", width=20, command=mostrar_tela_criar_modelo).pack(pady=10)
+    tk.Button(frame_principal, text="Botão 2 (futuro)", width=20, command=lambda: print("Botão 2 clicado")).pack(pady=10)
+    tk.Button(frame_principal, text="Botão 3 (futuro)", width=20, command=lambda: print("Botão 3 clicado")).pack(pady=10)
+    tk.Button(frame_principal, text="Botão 4 (futuro)", width=20, command=lambda: print("Botão 4 clicado")).pack(pady=10)
+
+
 def limpar_tela():
     for widget in frame_principal.winfo_children():
         widget.destroy()
@@ -111,10 +121,6 @@ def mostrar_conta_gotas(nome_atributo):
     canvas.imagem_tk = imagem_tk
     canvas.imagem_pil = imagem_pil
 
-    # Label para mostrar a cor selecionada
-    cor_label = tk.Label(frame_principal, text="Clique em uma cor", width=30, height=2, relief="solid")
-    cor_label.pack(pady=15)
-
     pixels = imagem_pil.load()
 
     def clique(event):
@@ -124,22 +130,45 @@ def mostrar_conta_gotas(nome_atributo):
 
         cor_min = (max(0, r - margem), max(0, g - margem), max(0, b - margem))
         cor_max = (min(255, r + margem), min(255, g + margem), min(255, b + margem))
+        cor_hex = f'#{r:02x}{g:02x}{b:02x}'
 
+        # Mostra tela de confirmação
+        mostrar_confirmacao_cor(nome_atributo, (r, g, b), cor_min, cor_max, cor_hex)
+
+    canvas.bind("<Button-1>", clique)
+
+def mostrar_confirmacao_cor(nome_atributo, rgb, cor_min, cor_max, cor_hex):
+    limpar_tela()
+
+    tk.Label(frame_principal, text=f"Confirmação da Cor", font=("Arial", 16)).pack(pady=10)
+
+    label_cor = tk.Label(frame_principal, text=f"RGB: {rgb}", width=30, height=2, bg=cor_hex,
+                         fg="white" if sum(rgb) < 382 else "black", relief="solid")
+    label_cor.pack(pady=15)
+
+    texto = f"Manter essa cor como referência para o atributo '{nome_atributo}'?"
+    tk.Label(frame_principal, text=texto, font=("Arial", 12)).pack(pady=10)
+
+    def confirmar():
         modelo_em_criacao["atributos_personagem1"][nome_atributo] = {
             "min": cor_min,
             "max": cor_max
         }
-
-        cor_hex = f'#{r:02x}{g:02x}{b:02x}'
-        cor_label.config(bg=cor_hex, text=f"RGB: ({r}, {g}, {b})", fg="white" if r+g+b < 382 else "black")
-
         janela.indice_atual += 1
         if janela.indice_atual < janela.qtd_atributos:
-            janela.after(1000, mostrar_etapa_nome_atributo)  # espera 1s e vai pro próximo
+            mostrar_etapa_nome_atributo()
         else:
-            janela.after(1000, salvar_modelo_final)
+            salvar_modelo_final()
 
-    canvas.bind("<Button-1>", clique)
+    def tentar_novamente():
+        mostrar_conta_gotas(nome_atributo)
+
+    botoes = tk.Frame(frame_principal)
+    botoes.pack(pady=20)
+
+    tk.Button(botoes, text="✅ Confirmar", command=confirmar, width=15).pack(side="left", padx=10)
+    tk.Button(botoes, text="❌ Selecionar outra cor", command=tentar_novamente, width=20).pack(side="left", padx=10)
+
 
 # FINAL – Salvar tudo
 def salvar_modelo_final():
@@ -152,6 +181,7 @@ menu = tk.Frame(janela)
 menu.pack(side="top", fill="x")
 tk.Button(menu, text="Criar modelo", command=mostrar_tela_criar_modelo).pack(side="left", padx=5, pady=5)
 
-# Inicializa a primeira tela
-mostrar_tela_criar_modelo()
+# Inicializa a tela inicial
+mostrar_tela_inicial()
 janela.mainloop()
+

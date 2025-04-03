@@ -6,7 +6,9 @@ modelo_em_criacao = {
     "nome": "",
     "imagens_personagem1": [],
     "imagens_personagem2": [],
-    "atributos_personagem1": {}
+    "atributos_personagem1": {},
+    "atributos_personagem2": {}
+
 }
 
 modelos_salvos = []
@@ -64,53 +66,61 @@ def mostrar_upload_personagem2():
     def selecionar_arquivos():
         arquivos = filedialog.askopenfilenames(title="Selecione as imagens do personagem 2")
         modelo_em_criacao["imagens_personagem2"] = list(arquivos)
-        mostrar_etapa_qtd_atributos()
+        mostrar_etapa_qtd_atributos(personagem=1)
 
     tk.Button(frame_principal, text="Selecionar imagens", command=selecionar_arquivos).pack(pady=20)
 
 # ETAPA 4 – Quantidade de atributos
-def mostrar_etapa_qtd_atributos():
+def mostrar_etapa_qtd_atributos(personagem):
     limpar_tela()
-    tk.Label(frame_principal, text="Etapa 4: Quantos atributos deseja definir?", font=("Arial", 14)).pack(pady=10)
+    tk.Label(frame_principal, text=f"Personagem {personagem}: Quantos atributos deseja definir?", font=("Arial", 14)).pack(pady=10)
     qtd_entry = tk.Entry(frame_principal)
     qtd_entry.pack()
 
     def avancar():
         try:
             qtd = int(qtd_entry.get())
-            janela.qtd_atributos = qtd
-            janela.indice_atual = 0
-            janela.nomes_atributos = []
-            mostrar_etapa_nome_atributo()
+            if personagem == 1:
+                janela.qtd_atributos = qtd
+                janela.indice_atual = 0
+                janela.nomes_atributos = []
+            else:
+                janela.qtd_atributos_p2 = qtd
+                janela.indice_atual_p2 = 0
+                janela.nomes_atributos_p2 = []
+            mostrar_etapa_nome_atributo(personagem)
         except ValueError:
             print("Digite um número válido")
 
     tk.Button(frame_principal, text="Avançar", command=avancar).pack(pady=10)
 
 # ETAPA 5 – Nome do atributo
-def mostrar_etapa_nome_atributo():
+def mostrar_etapa_nome_atributo(personagem):
     limpar_tela()
-    i = janela.indice_atual + 1
-    tk.Label(frame_principal, text=f"Etapa 5.{i}: Nome do Atributo {i}", font=("Arial", 14)).pack(pady=10)
+    i = (janela.indice_atual if personagem == 1 else janela.indice_atual_p2) + 1
+    tk.Label(frame_principal, text=f"Personagem {personagem} – Nome do Atributo {i}", font=("Arial", 14)).pack(pady=10)
     nome_entry = tk.Entry(frame_principal)
     nome_entry.pack()
 
     def avancar():
         nome = nome_entry.get().strip()
         if nome:
-            janela.nomes_atributos.append(nome)
-            mostrar_conta_gotas(nome)
+            if personagem == 1:
+                janela.nomes_atributos.append(nome)
+            else:
+                janela.nomes_atributos_p2.append(nome)
+            mostrar_conta_gotas(nome, personagem)
         else:
             print("Nome inválido")
 
     tk.Button(frame_principal, text="Avançar", command=avancar).pack(pady=10)
 
 # ETAPA 6 – Conta-gotas com clique na imagem
-def mostrar_conta_gotas(nome_atributo):
+def mostrar_conta_gotas(nome_atributo, personagem):
     limpar_tela()
-    tk.Label(frame_principal, text=f"Selecione uma cor para: {nome_atributo}", font=("Arial", 14)).pack(pady=10)
+    tk.Label(frame_principal, text=f"Selecione uma cor para: {nome_atributo} (Personagem {personagem})", font=("Arial", 14)).pack(pady=10)
 
-    caminho_imagem = modelo_em_criacao["imagens_personagem1"][0]
+    caminho_imagem = modelo_em_criacao[f"imagens_personagem{personagem}"][0]
     imagem_pil = Image.open(caminho_imagem)
     imagem_pil.thumbnail((500, 500))
     imagem_tk = ImageTk.PhotoImage(imagem_pil)
@@ -132,15 +142,13 @@ def mostrar_conta_gotas(nome_atributo):
         cor_max = (min(255, r + margem), min(255, g + margem), min(255, b + margem))
         cor_hex = f'#{r:02x}{g:02x}{b:02x}'
 
-        # Mostra tela de confirmação
-        mostrar_confirmacao_cor(nome_atributo, (r, g, b), cor_min, cor_max, cor_hex)
+        mostrar_confirmacao_cor(nome_atributo, (r, g, b), cor_min, cor_max, cor_hex, personagem)
 
     canvas.bind("<Button-1>", clique)
 
-def mostrar_confirmacao_cor(nome_atributo, rgb, cor_min, cor_max, cor_hex):
+def mostrar_confirmacao_cor(nome_atributo, rgb, cor_min, cor_max, cor_hex, personagem):
     limpar_tela()
-
-    tk.Label(frame_principal, text=f"Confirmação da Cor", font=("Arial", 16)).pack(pady=10)
+    tk.Label(frame_principal, text=f"Confirmação da Cor (Personagem {personagem})", font=("Arial", 16)).pack(pady=10)
 
     label_cor = tk.Label(frame_principal, text=f"RGB: {rgb}", width=30, height=2, bg=cor_hex,
                          fg="white" if sum(rgb) < 382 else "black", relief="solid")
@@ -150,18 +158,26 @@ def mostrar_confirmacao_cor(nome_atributo, rgb, cor_min, cor_max, cor_hex):
     tk.Label(frame_principal, text=texto, font=("Arial", 12)).pack(pady=10)
 
     def confirmar():
-        modelo_em_criacao["atributos_personagem1"][nome_atributo] = {
+        modelo_em_criacao[f"atributos_personagem{personagem}"][nome_atributo] = {
             "min": cor_min,
             "max": cor_max
         }
-        janela.indice_atual += 1
-        if janela.indice_atual < janela.qtd_atributos:
-            mostrar_etapa_nome_atributo()
+
+        if personagem == 1:
+            janela.indice_atual += 1
+            if janela.indice_atual < janela.qtd_atributos:
+                mostrar_etapa_nome_atributo(personagem)
+            else:
+                mostrar_etapa_qtd_atributos(personagem=2)
         else:
-            salvar_modelo_final()
+            janela.indice_atual_p2 += 1
+            if janela.indice_atual_p2 < janela.qtd_atributos_p2:
+                mostrar_etapa_nome_atributo(personagem)
+            else:
+                salvar_modelo_final()
 
     def tentar_novamente():
-        mostrar_conta_gotas(nome_atributo)
+        mostrar_conta_gotas(nome_atributo, personagem)
 
     botoes = tk.Frame(frame_principal)
     botoes.pack(pady=20)
@@ -174,7 +190,7 @@ def mostrar_confirmacao_cor(nome_atributo, rgb, cor_min, cor_max, cor_hex):
 def salvar_modelo_final():
     modelos_salvos.append(modelo_em_criacao.copy())
     print("Modelo salvo com sucesso!\n", modelo_em_criacao)
-    mostrar_tela_criar_modelo()
+    mostrar_tela_inicial()
 
 # Menu superior
 menu = tk.Frame(janela)

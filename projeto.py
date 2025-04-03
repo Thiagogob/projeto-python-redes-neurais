@@ -1,6 +1,9 @@
 import tkinter as tk
 from tkinter import filedialog
 from PIL import Image, ImageTk
+import csv
+import os
+
 
 modelo_em_criacao = {
     "nome": "",
@@ -185,10 +188,63 @@ def mostrar_confirmacao_cor(nome_atributo, rgb, cor_min, cor_max, cor_hex, perso
     tk.Button(botoes, text="✅ Confirmar", command=confirmar, width=15).pack(side="left", padx=10)
     tk.Button(botoes, text="❌ Selecionar outra cor", command=tentar_novamente, width=20).pack(side="left", padx=10)
 
+def gerar_csv(modelo):
+    atributos_p1 = modelo["atributos_personagem1"]
+    atributos_p2 = modelo["atributos_personagem2"]
+
+    imagens = modelo["imagens_personagem1"] + modelo["imagens_personagem2"]
+    atributos = {**atributos_p1, **atributos_p2}
+
+    colunas = ["imagem"] + list(atributos.keys())
+    linhas = []
+
+    def contar_pixels(imagem_path, atributos):
+        imagem = Image.open(imagem_path).convert("RGB")
+        pixels = imagem.load()
+        largura, altura = imagem.size
+
+        contagens = {nome: 0 for nome in atributos}
+
+        for x in range(largura):
+            for y in range(altura):
+                r, g, b = pixels[x, y]
+                for nome, faixa in atributos.items():
+                    rmin, gmin, bmin = faixa["min"]
+                    rmax, gmax, bmax = faixa["max"]
+                    if rmin <= r <= rmax and gmin <= g <= gmax and bmin <= b <= bmax:
+                        contagens[nome] += 1
+
+        return contagens, largura * altura
+
+    def normalizar(valor, total_pixels):
+        if total_pixels == 0:
+            return 0
+        porcentagem = valor / total_pixels
+        if porcentagem == 0:
+            return 0
+        elif porcentagem > 0.02:
+            return 10
+        else:
+            return round(porcentagem / 0.02 * 10)
+
+    for img in imagens:
+        contagens, total = contar_pixels(img, atributos)
+        linha = [os.path.basename(img)]
+        for nome in atributos:
+            linha.append(normalizar(contagens[nome], total))
+        linhas.append(linha)
+
+    with open("dados_personagens.csv", "w", newline="") as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerow(colunas)
+        writer.writerows(linhas)
+
+    print("Arquivo CSV 'dados_personagens.csv' gerado com sucesso!")
 
 # FINAL – Salvar tudo
 def salvar_modelo_final():
     modelos_salvos.append(modelo_em_criacao.copy())
+    gerar_csv(modelo_em_criacao)
     print("Modelo salvo com sucesso!\n", modelo_em_criacao)
     mostrar_tela_inicial()
 

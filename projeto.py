@@ -162,9 +162,9 @@ def mostrar_confirmacao_cor(nome_atributo, rgb, cor_min, cor_max, cor_hex, perso
 
     def confirmar():
         modelo_em_criacao[f"atributos_personagem{personagem}"][nome_atributo] = {
-            "min": cor_min,
-            "max": cor_max
+            "referencia": rgb
         }
+
 
         if personagem == 1:
             janela.indice_atual += 1
@@ -188,7 +188,18 @@ def mostrar_confirmacao_cor(nome_atributo, rgb, cor_min, cor_max, cor_hex, perso
     tk.Button(botoes, text="✅ Confirmar", command=confirmar, width=15).pack(side="left", padx=10)
     tk.Button(botoes, text="❌ Selecionar outra cor", command=tentar_novamente, width=20).pack(side="left", padx=10)
 
-def gerar_csv(modelo):
+def cor_esta_na_faixa(pixel_rgb, cor_referencia, tolerancia=40):
+    r1, g1, b1 = pixel_rgb
+    r2, g2, b2 = cor_referencia
+    dist = ((r1 - r2)**2 + (g1 - g2)**2 + (b1 - b2)**2) ** 0.5
+    return dist <= tolerancia
+
+
+def gerar_csv(modelo, tolerancia=40):
+    from PIL import Image
+    import csv
+    import os
+
     atributos_p1 = modelo["atributos_personagem1"]
     atributos_p2 = modelo["atributos_personagem2"]
 
@@ -198,48 +209,49 @@ def gerar_csv(modelo):
     colunas = ["imagem"] + list(atributos.keys())
     linhas = []
 
-    def contar_pixels(imagem_path, atributos):
+    def contar_por_distancia_com_area_util(imagem_path, atributos, tolerancia):
         imagem = Image.open(imagem_path).convert("RGB")
         pixels = imagem.load()
         largura, altura = imagem.size
 
         contagens = {nome: 0 for nome in atributos}
+        total_relevante = 0
 
         for x in range(largura):
             for y in range(altura):
                 r, g, b = pixels[x, y]
-                for nome, faixa in atributos.items():
-                    rmin, gmin, bmin = faixa["min"]
-                    rmax, gmax, bmax = faixa["max"]
-                    if rmin <= r <= rmax and gmin <= g <= gmax and bmin <= b <= bmax:
+                bateu_em_algum = False
+                for nome, dados in atributos.items():
+                    ref = dados["referencia"]
+                    if cor_esta_na_faixa((r, g, b), ref, tolerancia):
                         contagens[nome] += 1
+                        bateu_em_algum = True
+                if bateu_em_algum:
+                    total_relevante += 1
 
-        return contagens, largura * altura
+        return contagens, total_relevante
 
-    def normalizar(valor, total_pixels):
-        if total_pixels == 0:
-            return 0
-        porcentagem = valor / total_pixels
-        if porcentagem == 0:
-            return 0
-        elif porcentagem > 0.02:
-            return 10
-        else:
-            return round(porcentagem / 0.02 * 10)
 
     for img in imagens:
-        contagens, total = contar_pixels(img, atributos)
+        contagens, total_util = contar_por_distancia_com_area_util(img, atributos, tolerancia)
         linha = [os.path.basename(img)]
         for nome in atributos:
-            linha.append(normalizar(contagens[nome], total))
+            proporcao = contagens[nome] / total_util if total_util else 0
+            linha.append(round(proporcao * 10, 4))  # Escala de 0 a 10
         linhas.append(linha)
+
+
 
     with open("dados_personagens.csv", "w", newline="") as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(colunas)
         writer.writerows(linhas)
 
-    print("Arquivo CSV 'dados_personagens.csv' gerado com sucesso!")
+    print("CSV gerado com sucesso usando distância de cor com tolerância =", tolerancia)
+
+
+
+
 
 # FINAL – Salvar tudo
 def salvar_modelo_final():

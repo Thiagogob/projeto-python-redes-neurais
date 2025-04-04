@@ -7,6 +7,8 @@ import os
 
 modelo_em_criacao = {
     "nome": "",
+    "personagem1": "",
+    "personagem2": "",
     "imagens_personagem1": [],
     "imagens_personagem2": [],
     "atributos_personagem1": {},
@@ -45,7 +47,7 @@ def mostrar_tela_criar_modelo():
 
     def salvar_nome():
         modelo_em_criacao["nome"] = nome_entry.get().strip()
-        mostrar_upload_personagem1()
+        mostrar_nomes_personagens()
     
     tk.Button(frame_principal, text="Avançar", command=salvar_nome).pack(pady=10)
 
@@ -72,6 +74,26 @@ def mostrar_upload_personagem2():
         mostrar_etapa_qtd_atributos(personagem=1)
 
     tk.Button(frame_principal, text="Selecionar imagens", command=selecionar_arquivos).pack(pady=20)
+
+def mostrar_nomes_personagens():
+    limpar_tela()
+    tk.Label(frame_principal, text="Nome dos Personagens", font=("Arial", 14)).pack(pady=10)
+
+    tk.Label(frame_principal, text="Nome do Personagem 1").pack()
+    p1_entry = tk.Entry(frame_principal)
+    p1_entry.pack(pady=5)
+
+    tk.Label(frame_principal, text="Nome do Personagem 2").pack()
+    p2_entry = tk.Entry(frame_principal)
+    p2_entry.pack(pady=5)
+
+    def avancar():
+        modelo_em_criacao["personagem1"] = p1_entry.get().strip()
+        modelo_em_criacao["personagem2"] = p2_entry.get().strip()
+        mostrar_upload_personagem1()
+
+    tk.Button(frame_principal, text="Avançar", command=avancar).pack(pady=10)
+
 
 # ETAPA 4 – Quantidade de atributos
 def mostrar_etapa_qtd_atributos(personagem):
@@ -206,7 +228,8 @@ def gerar_csv(modelo, tolerancia=40):
     imagens = modelo["imagens_personagem1"] + modelo["imagens_personagem2"]
     atributos = {**atributos_p1, **atributos_p2}
 
-    colunas = ["imagem"] + list(atributos.keys())
+    colunas = ["imagem"] + list(atributos.keys()) + ["classe"]
+
     linhas = []
 
     def contar_por_distancia_com_area_util(imagem_path, atributos, tolerancia):
@@ -237,7 +260,15 @@ def gerar_csv(modelo, tolerancia=40):
         linha = [os.path.basename(img)]
         for nome in atributos:
             proporcao = contagens[nome] / total_util if total_util else 0
-            linha.append(round(proporcao * 10, 4))  # Escala de 0 a 10
+            linha.append(round(proporcao * 10, 4))
+    
+        # Define a classe com base no nome do personagem correspondente
+        if img in modelo["imagens_personagem1"]:
+            classe = modelo["personagem1"]
+        else:
+            classe = modelo["personagem2"]
+        linha.append(classe)
+
         linhas.append(linha)
 
 

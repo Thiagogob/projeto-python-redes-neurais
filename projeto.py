@@ -296,6 +296,30 @@ menu = tk.Frame(janela)
 menu.pack(side="top", fill="x")
 tk.Button(menu, text="Criar modelo", command=mostrar_tela_criar_modelo).pack(side="left", padx=5, pady=5)
 
+# ETAPA EXTRA – Treinar modelo com dados do CSV
+def treinar_modelo():
+    import pandas as pd
+    import tensorflow as tf
+
+    dataset = pd.read_csv("dados_personagens.csv")
+
+    # X = todas as colunas exceto a primeira (imagem) e a última (classe)
+    X = dataset.iloc[:, 1:-1].values
+
+    # y = coluna da classe (última coluna)
+    y = dataset.iloc[:, -1].values
+
+    # transforma em True/False com base no nome do personagem1
+    y = (y == modelo_em_criacao["personagem1"])
+
+    print("Dados carregados para treino:")
+    print("X shape:", X.shape)
+    print("y shape:", y.shape)
+
+    # Aqui você pode continuar com a criação da rede neural
+    # Exemplo: model = tf.keras.Sequential([...])
+
+
 # Inicializa a tela inicial
 mostrar_tela_inicial()
 janela.mainloop()

@@ -238,7 +238,7 @@ def contar_por_distancia_com_area_util(imagem_path, atributos, tolerancia):
 
         return contagens, total_relevante
 
-def gerar_csv(modelo, tolerancia=40):
+def gerar_csv(modelo, tolerancia=5):
     from PIL import Image
     import csv
     import os
@@ -323,7 +323,7 @@ def treinar_modelo():
 
     rede_neural.compile(optimizer='Adam', loss='binary_crossentropy', metrics=['accuracy'])
 
-    historico = rede_neural.fit(X, y, epochs=200, validation_split=0.1)
+    historico = rede_neural.fit(X, y, epochs=300, validation_split=0.15)
 
     print("Rede neural treinada com sucesso!")
 

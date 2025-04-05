@@ -216,23 +216,7 @@ def cor_esta_na_faixa(pixel_rgb, cor_referencia, tolerancia=40):
     dist = ((r1 - r2)**2 + (g1 - g2)**2 + (b1 - b2)**2) ** 0.5
     return dist <= tolerancia
 
-
-def gerar_csv(modelo, tolerancia=40):
-    from PIL import Image
-    import csv
-    import os
-
-    atributos_p1 = modelo["atributos_personagem1"]
-    atributos_p2 = modelo["atributos_personagem2"]
-
-    imagens = modelo["imagens_personagem1"] + modelo["imagens_personagem2"]
-    atributos = {**atributos_p1, **atributos_p2}
-
-    colunas = ["imagem"] + list(atributos.keys()) + ["classe"]
-
-    linhas = []
-
-    def contar_por_distancia_com_area_util(imagem_path, atributos, tolerancia):
+def contar_por_distancia_com_area_util(imagem_path, atributos, tolerancia):
         imagem = Image.open(imagem_path).convert("RGB")
         pixels = imagem.load()
         largura, altura = imagem.size
@@ -253,6 +237,21 @@ def gerar_csv(modelo, tolerancia=40):
                     total_relevante += 1
 
         return contagens, total_relevante
+
+def gerar_csv(modelo, tolerancia=40):
+    from PIL import Image
+    import csv
+    import os
+
+    atributos_p1 = modelo["atributos_personagem1"]
+    atributos_p2 = modelo["atributos_personagem2"]
+
+    imagens = modelo["imagens_personagem1"] + modelo["imagens_personagem2"]
+    atributos = {**atributos_p1, **atributos_p2}
+
+    colunas = ["imagem"] + list(atributos.keys()) + ["classe"]
+
+    linhas = []
 
 
     for img in imagens:
@@ -336,27 +335,61 @@ def testar_modelo(nome_arquivo_modelo):
     import tensorflow as tf
     from tkinter import filedialog
     import numpy as np
+    from PIL import Image, ImageTk
 
-    modelo = tf.keras.models.load_model(nome_arquivo_modelo)
-    atributos_csv = pd.read_csv("dados_personagens.csv")
-    nomes_atributos = atributos_csv.columns[1:-1]  # ignora "imagem" e "classe"
-
+    # Seleciona imagem
     caminho_imagem = filedialog.askopenfilename(title="Escolha uma imagem para testar")
     if not caminho_imagem:
         return
 
+    # Carrega modelo
+    modelo = tf.keras.models.load_model(nome_arquivo_modelo)
+
+    # Lê CSV para pegar ordem dos atributos
+    atributos_csv = pd.read_csv("dados_personagens.csv")
+    nomes_atributos = atributos_csv.columns[1:-1]
+
+    # Recalcula atributos
     atributos = {**modelo_em_criacao["atributos_personagem1"], **modelo_em_criacao["atributos_personagem2"]}
     contagens, total = contar_por_distancia_com_area_util(caminho_imagem, atributos, tolerancia=40)
     entrada = []
     for nome in nomes_atributos:
         proporcao = contagens[nome] / total if total else 0
         entrada.append(round(proporcao * 10, 4))
-
     entrada = np.array(entrada).reshape(1, -1)
-    resultado = modelo.predict(entrada)[0][0]
 
-    personagem_predito = modelo_em_criacao["personagem1"] if resultado >= 0.5 else modelo_em_criacao["personagem2"]
-    print(f"\n[TESTE] Resultado da predição: {resultado:.4f} → {personagem_predito}")
+    # Faz a predição
+    resultado = modelo.predict(entrada)[0][0]
+    classes = atributos_csv["classe"].unique()
+    if len(classes) >= 2:
+        personagem_predito = classes[0] if resultado >= 0.5 else classes[1]
+    else:
+        personagem_predito = "Desconhecido"
+
+    #print("Predição: ", personagem_predito)
+
+
+    # Volta à tela principal para mostrar os dados
+    limpar_tela()
+
+    tk.Label(frame_principal, text="Resultado da Predição", font=("Arial", 16)).pack(pady=10)
+
+    # Exibe imagem carregada
+    imagem_pil = Image.open(caminho_imagem)
+    imagem_pil.thumbnail((300, 300))
+    imagem_tk = ImageTk.PhotoImage(imagem_pil)
+
+    canvas = tk.Canvas(frame_principal, width=imagem_pil.width, height=imagem_pil.height)
+    canvas.pack()
+    canvas.create_image(0, 0, anchor="nw", image=imagem_tk)
+    canvas.image = imagem_tk  # necessário para manter a imagem visível
+
+    # Exibe o resultado
+    tk.Label(frame_principal, text="Predição:", font=("Arial", 14)).pack(pady=10)
+    tk.Label(frame_principal, text=f"{personagem_predito}", font=("Arial", 14, "bold")).pack(pady=5)
+    tk.Label(frame_principal, text=f"Probabilidade: {resultado:.4f}", font=("Arial", 12)).pack(pady=5)
+
+
 
 
 def mostrar_tela_testar_modelo():
@@ -386,6 +419,9 @@ def mostrar_tela_testar_modelo():
 
     tk.Button(frame_principal, text="Selecionar imagem para testar", command=carregar_e_testar).pack(pady=20)
     tk.Button(frame_principal, text="Voltar", command=mostrar_tela_inicial).pack(pady=10)
+
+
+
 
 # Inicializa a tela inicial
 mostrar_tela_inicial()

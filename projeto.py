@@ -29,7 +29,7 @@ def mostrar_tela_inicial():
     tk.Label(frame_principal, text="Menu Principal", font=("Arial", 18)).pack(pady=30)
 
     tk.Button(frame_principal, text="Criar modelo", width=20, command=mostrar_tela_criar_modelo).pack(pady=10)
-    tk.Button(frame_principal, text="Botão 2 (futuro)", width=20, command=lambda: print("Botão 2 clicado")).pack(pady=10)
+    tk.Button(frame_principal, text="Testar modelo", width=20, command=mostrar_tela_testar_modelo).pack(pady=10)
     tk.Button(frame_principal, text="Botão 3 (futuro)", width=20, command=lambda: print("Botão 3 clicado")).pack(pady=10)
     tk.Button(frame_principal, text="Botão 4 (futuro)", width=20, command=lambda: print("Botão 4 clicado")).pack(pady=10)
 
@@ -289,8 +289,9 @@ def salvar_modelo_final():
     modelos_salvos.append(modelo_em_criacao.copy())
     gerar_csv(modelo_em_criacao)
     print("Modelo salvo com sucesso!\n", modelo_em_criacao)
+    treinar_modelo()
     mostrar_tela_inicial()
-
+    janela.after(100, mostrar_tela_inicial)
 # Menu superior
 menu = tk.Frame(janela)
 menu.pack(side="top", fill="x")
@@ -300,25 +301,91 @@ tk.Button(menu, text="Criar modelo", command=mostrar_tela_criar_modelo).pack(sid
 def treinar_modelo():
     import pandas as pd
     import tensorflow as tf
+    from sklearn.model_selection import train_test_split
 
     dataset = pd.read_csv("dados_personagens.csv")
 
-    # X = todas as colunas exceto a primeira (imagem) e a última (classe)
+    # X = atributos (depois da coluna 'imagem', antes da última 'classe')
     X = dataset.iloc[:, 1:-1].values
-
-    # y = coluna da classe (última coluna)
     y = dataset.iloc[:, -1].values
 
-    # transforma em True/False com base no nome do personagem1
     y = (y == modelo_em_criacao["personagem1"])
 
-    print("Dados carregados para treino:")
-    print("X shape:", X.shape)
-    print("y shape:", y.shape)
+    # separa dados para treino e teste
+    #X_treinamento, X_teste, y_treinamento, y_teste = train_test_split(X, y, test_size=0.2)
 
-    # Aqui você pode continuar com a criação da rede neural
-    # Exemplo: model = tf.keras.Sequential([...])
+    # modelo de rede neural
+    input_dim = X.shape[1]  # número de atributos
 
+    rede_neural = tf.keras.models.Sequential()
+    rede_neural.add(tf.keras.layers.Dense(units=2, activation='relu', input_shape=(input_dim,)))
+    rede_neural.add(tf.keras.layers.Dense(units=2, activation='relu'))
+    rede_neural.add(tf.keras.layers.Dense(units=1, activation='sigmoid'))
+
+    rede_neural.compile(optimizer='Adam', loss='binary_crossentropy', metrics=['accuracy'])
+
+    historico = rede_neural.fit(X, y, epochs=200, validation_split=0.1)
+
+    print("Rede neural treinada com sucesso!")
+
+    rede_neural.save("modelo_personagem.keras")
+
+
+def testar_modelo(nome_arquivo_modelo):
+    import pandas as pd
+    import tensorflow as tf
+    from tkinter import filedialog
+    import numpy as np
+
+    modelo = tf.keras.models.load_model(nome_arquivo_modelo)
+    atributos_csv = pd.read_csv("dados_personagens.csv")
+    nomes_atributos = atributos_csv.columns[1:-1]  # ignora "imagem" e "classe"
+
+    caminho_imagem = filedialog.askopenfilename(title="Escolha uma imagem para testar")
+    if not caminho_imagem:
+        return
+
+    atributos = {**modelo_em_criacao["atributos_personagem1"], **modelo_em_criacao["atributos_personagem2"]}
+    contagens, total = contar_por_distancia_com_area_util(caminho_imagem, atributos, tolerancia=40)
+    entrada = []
+    for nome in nomes_atributos:
+        proporcao = contagens[nome] / total if total else 0
+        entrada.append(round(proporcao * 10, 4))
+
+    entrada = np.array(entrada).reshape(1, -1)
+    resultado = modelo.predict(entrada)[0][0]
+
+    personagem_predito = modelo_em_criacao["personagem1"] if resultado >= 0.5 else modelo_em_criacao["personagem2"]
+    print(f"\n[TESTE] Resultado da predição: {resultado:.4f} → {personagem_predito}")
+
+
+def mostrar_tela_testar_modelo():
+    limpar_tela()
+    tk.Label(frame_principal, text="Testar Modelo", font=("Arial", 16)).pack(pady=10)
+
+    from os import listdir
+    from os.path import isfile, join
+
+    # busca modelos .keras na pasta atual
+    modelos_disponiveis = [f for f in listdir() if f.endswith(".keras")]
+
+    if not modelos_disponiveis:
+        tk.Label(frame_principal, text="Nenhum modelo .keras encontrado.").pack(pady=10)
+        return
+
+    tk.Label(frame_principal, text="Selecione um modelo:").pack()
+    var_modelo = tk.StringVar()
+    var_modelo.set(modelos_disponiveis[0])
+
+    drop = tk.OptionMenu(frame_principal, var_modelo, *modelos_disponiveis)
+    drop.pack(pady=10)
+
+    def carregar_e_testar():
+        nome_modelo = var_modelo.get()
+        testar_modelo(nome_modelo)
+
+    tk.Button(frame_principal, text="Selecionar imagem para testar", command=carregar_e_testar).pack(pady=20)
+    tk.Button(frame_principal, text="Voltar", command=mostrar_tela_inicial).pack(pady=10)
 
 # Inicializa a tela inicial
 mostrar_tela_inicial()

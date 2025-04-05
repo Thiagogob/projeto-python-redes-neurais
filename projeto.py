@@ -317,8 +317,8 @@ def treinar_modelo():
     input_dim = X.shape[1]  # número de atributos
 
     rede_neural = tf.keras.models.Sequential()
-    rede_neural.add(tf.keras.layers.Dense(units=2, activation='relu', input_shape=(input_dim,)))
-    rede_neural.add(tf.keras.layers.Dense(units=2, activation='relu'))
+    rede_neural.add(tf.keras.layers.Dense(units=16, activation='relu', input_shape=(input_dim,)))
+    rede_neural.add(tf.keras.layers.Dense(units=8, activation='relu'))
     rede_neural.add(tf.keras.layers.Dense(units=1, activation='sigmoid'))
 
     rede_neural.compile(optimizer='Adam', loss='binary_crossentropy', metrics=['accuracy'])

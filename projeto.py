@@ -327,7 +327,21 @@ def treinar_modelo():
 
     print("Rede neural treinada com sucesso!")
 
-    rede_neural.save("modelo_personagem.keras")
+    import json
+
+    dados = {
+        "personagem1": modelo_em_criacao["personagem1"],
+        "personagem2": modelo_em_criacao["personagem2"],
+        "atributos_personagem1": modelo_em_criacao["atributos_personagem1"],
+        "atributos_personagem2": modelo_em_criacao["atributos_personagem2"]
+    }
+
+    nome_base = modelo_em_criacao["nome"]
+    with open(f"{nome_base}.json", "w") as f:
+        json.dump(dados, f)
+
+
+    rede_neural.save(f"{nome_base}.keras")
 
 
 def testar_modelo(nome_arquivo_modelo):
@@ -344,6 +358,19 @@ def testar_modelo(nome_arquivo_modelo):
 
     # Carrega modelo
     modelo = tf.keras.models.load_model(nome_arquivo_modelo)
+
+    import json
+    import os
+
+    json_path = os.path.splitext(nome_arquivo_modelo)[0] + ".json"
+    with open(json_path, "r") as f:
+        dados = json.load(f)
+
+    modelo_em_criacao["personagem1"] = dados["personagem1"]
+    modelo_em_criacao["personagem2"] = dados["personagem2"]
+    modelo_em_criacao["atributos_personagem1"] = dados["atributos_personagem1"]
+    modelo_em_criacao["atributos_personagem2"] = dados["atributos_personagem2"]
+
 
     # Lê CSV para pegar ordem dos atributos
     atributos_csv = pd.read_csv("dados_personagens.csv")

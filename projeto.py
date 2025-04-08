@@ -210,7 +210,7 @@ def mostrar_confirmacao_cor(nome_atributo, rgb, cor_min, cor_max, cor_hex, perso
     tk.Button(botoes, text="✅ Confirmar", command=confirmar, width=15).pack(side="left", padx=10)
     tk.Button(botoes, text="❌ Selecionar outra cor", command=tentar_novamente, width=20).pack(side="left", padx=10)
 
-def cor_esta_na_faixa(pixel_rgb, cor_referencia, tolerancia=5):
+def cor_esta_na_faixa(pixel_rgb, cor_referencia, tolerancia=25):
     r1, g1, b1 = pixel_rgb
     r2, g2, b2 = cor_referencia
     dist = ((r1 - r2)**2 + (g1 - g2)**2 + (b1 - b2)**2) ** 0.5
@@ -238,7 +238,7 @@ def contar_por_distancia_com_area_util(imagem_path, atributos, tolerancia):
 
         return contagens, total_relevante
 
-def gerar_csv(modelo, tolerancia=5):
+def gerar_csv(modelo, tolerancia=25):
     from PIL import Image
     import csv
     import os
@@ -351,7 +351,7 @@ def testar_modelo(nome_arquivo_modelo):
 
     # Recalcula atributos
     atributos = {**modelo_em_criacao["atributos_personagem1"], **modelo_em_criacao["atributos_personagem2"]}
-    contagens, total = contar_por_distancia_com_area_util(caminho_imagem, atributos, tolerancia=5)
+    contagens, total = contar_por_distancia_com_area_util(caminho_imagem, atributos, tolerancia=25)
     entrada = []
     for nome in nomes_atributos:
         proporcao = contagens[nome] / total if total else 0
@@ -390,6 +390,10 @@ def testar_modelo(nome_arquivo_modelo):
     tk.Label(frame_principal, text=f"Probabilidade: {resultado:.4f}", font=("Arial", 12)).pack(pady=5)
 
 
+    botoes = tk.Frame(frame_principal)
+    botoes.pack(pady=20)
+
+    tk.Button(botoes, text="🏠 Voltar ao início", command=mostrar_tela_inicial).pack(side="left", padx=10)
 
 
 def mostrar_tela_testar_modelo():

@@ -30,8 +30,9 @@ def mostrar_tela_inicial():
 
     tk.Button(frame_principal, text="Criar modelo", width=20, command=mostrar_tela_criar_modelo).pack(pady=10)
     tk.Button(frame_principal, text="Testar modelo", width=20, command=mostrar_tela_testar_modelo).pack(pady=10)
-    tk.Button(frame_principal, text="Botão 3 (futuro)", width=20, command=lambda: print("Botão 3 clicado")).pack(pady=10)
-    tk.Button(frame_principal, text="Botão 4 (futuro)", width=20, command=lambda: print("Botão 4 clicado")).pack(pady=10)
+    tk.Button(frame_principal, text="Criar modelo rede convolucional", width=30, command=iniciar_fluxo_cnn).pack(pady=10)
+    tk.Button(frame_principal, text="Testar modelo convolucional", width=30, command=mostrar_tela_testar_modelo_cnn).pack(pady=10)
+
 
 
 def limpar_tela():
@@ -71,7 +72,13 @@ def mostrar_upload_personagem2():
     def selecionar_arquivos():
         arquivos = filedialog.askopenfilenames(title="Selecione as imagens do personagem 2")
         modelo_em_criacao["imagens_personagem2"] = list(arquivos)
-        mostrar_etapa_qtd_atributos(personagem=1)
+
+        # Verifica se o fluxo é CNN
+        if modelo_em_criacao.get("tipo_modelo") == "cnn":
+            treinar_modelo_cnn()
+        else:
+            mostrar_etapa_qtd_atributos(personagem=1)
+
 
     tk.Button(frame_principal, text="Selecionar imagens", command=selecionar_arquivos).pack(pady=20)
 
@@ -452,6 +459,222 @@ def mostrar_tela_testar_modelo():
     tk.Button(frame_principal, text="Voltar", command=mostrar_tela_inicial).pack(pady=10)
 
 
+def iniciar_fluxo_cnn():
+    limpar_tela()
+    tk.Label(frame_principal, text="CNN - Nome do Modelo", font=("Arial", 14)).pack(pady=10)
+    nome_entry = tk.Entry(frame_principal, width=30)
+    nome_entry.pack(pady=5)
+
+    def salvar_nome():
+        modelo_em_criacao["nome"] = nome_entry.get().strip()
+        modelo_em_criacao["tipo_modelo"] = "cnn"
+        mostrar_nomes_personagens()
+
+    tk.Button(frame_principal, text="Avançar", command=salvar_nome).pack(pady=10)
+
+def treinar_modelo_cnn():
+    import tensorflow as tf
+    import os
+    import shutil
+    from PIL import Image
+    from tensorflow.keras.preprocessing.image import ImageDataGenerator
+
+    nome_modelo = modelo_em_criacao["nome"]
+    personagem1 = modelo_em_criacao["personagem1"]
+    personagem2 = modelo_em_criacao["personagem2"]
+
+    # Cria estrutura de diretórios temporários para treinamento
+    pasta_base = f"dataset_{nome_modelo}"
+    pasta_treino = os.path.join(pasta_base, "train")
+    shutil.rmtree(pasta_base, ignore_errors=True)
+
+    os.makedirs(os.path.join(pasta_treino, personagem1), exist_ok=True)
+    os.makedirs(os.path.join(pasta_treino, personagem2), exist_ok=True)
+
+    # Copia imagens para as pastas certas
+    for img_path in modelo_em_criacao["imagens_personagem1"]:
+        shutil.copy(img_path, os.path.join(pasta_treino, personagem1, os.path.basename(img_path)))
+    for img_path in modelo_em_criacao["imagens_personagem2"]:
+        shutil.copy(img_path, os.path.join(pasta_treino, personagem2, os.path.basename(img_path)))
+
+    # Gera dados de imagem com data augmentation e validação
+    datagen = ImageDataGenerator(
+        rescale=1./255,
+        validation_split=0.1,
+        rotation_range=20,
+        zoom_range=0.2,
+        width_shift_range=0.2,
+        height_shift_range=0.2,
+        horizontal_flip=True,
+        brightness_range=[0.8, 1.2]
+    )
+
+    treino_gen = datagen.flow_from_directory(
+        pasta_treino,
+        target_size=(64, 64),
+        batch_size=8,
+        class_mode='binary',
+        subset='training'
+    )
+
+    valid_gen = datagen.flow_from_directory(
+        pasta_treino,
+        target_size=(64, 64),
+        batch_size=8,
+        class_mode='binary',
+        subset='validation'
+    )
+
+
+    # Salva o mapeamento real das classes
+    indice_para_classe = {v: k for k, v in treino_gen.class_indices.items()}
+
+
+    valid_gen = datagen.flow_from_directory(
+        pasta_treino,
+        target_size=(64, 64),
+        batch_size=8,
+        class_mode='binary',
+        subset='validation'
+    )
+
+    # Modelo CNN
+    from tensorflow.keras.callbacks import EarlyStopping
+
+    # Early stopping para evitar overfitting
+    early_stop = EarlyStopping(
+        monitor='val_loss',
+        patience=5,
+        restore_best_weights=True
+    )
+
+# Novo modelo mais profundo e robusto
+    model = tf.keras.models.Sequential([
+        tf.keras.layers.Conv2D(32, (3, 3), activation='relu', input_shape=(64, 64, 3)),
+        tf.keras.layers.MaxPooling2D(2, 2),
+        tf.keras.layers.BatchNormalization(),
+
+        tf.keras.layers.Conv2D(64, (3, 3), activation='relu'),
+        tf.keras.layers.MaxPooling2D(2, 2),
+        tf.keras.layers.BatchNormalization(),
+
+        tf.keras.layers.Conv2D(128, (3, 3), activation='relu'),
+        tf.keras.layers.MaxPooling2D(2, 2),
+        tf.keras.layers.BatchNormalization(),
+
+        tf.keras.layers.Flatten(),
+        tf.keras.layers.Dropout(0.5),
+        tf.keras.layers.Dense(128, activation='relu'),
+        tf.keras.layers.Dense(1, activation='sigmoid')
+    ])
+
+    model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+
+    # Treinamento com early stopping
+    model.fit(
+        treino_gen,
+        validation_data=valid_gen,
+        epochs=50
+    )
+
+
+    # Salva modelo e JSON
+    nome_arquivo = f"{nome_modelo}_cnn"
+    model.save(f"{nome_arquivo}.keras")
+
+    import json
+    with open(f"{nome_arquivo}.json", "w") as f:
+        json.dump({
+        "personagem1": personagem1,
+        "personagem2": personagem2,
+        "classe_0": indice_para_classe[0],
+        "classe_1": indice_para_classe[1]
+    }, f)
+
+
+    print("Modelo CNN treinado e salvo com sucesso!")
+
+    # Volta ao menu
+    janela.after(100, mostrar_tela_inicial)
+
+def mostrar_tela_testar_modelo_cnn():
+    limpar_tela()
+    tk.Label(frame_principal, text="Testar Modelo CNN", font=("Arial", 16)).pack(pady=10)
+
+    from os import listdir
+    from os.path import isfile, join
+
+    modelos_disponiveis = [f for f in listdir() if f.endswith("_cnn.keras")]
+
+    if not modelos_disponiveis:
+        tk.Label(frame_principal, text="Nenhum modelo CNN encontrado.").pack(pady=10)
+        return
+
+    tk.Label(frame_principal, text="Selecione um modelo:").pack()
+    var_modelo = tk.StringVar()
+    var_modelo.set(modelos_disponiveis[0])
+
+    drop = tk.OptionMenu(frame_principal, var_modelo, *modelos_disponiveis)
+    drop.pack(pady=10)
+
+    def carregar_e_testar():
+        nome_modelo = var_modelo.get()
+        testar_modelo_cnn(nome_modelo)
+
+    tk.Button(frame_principal, text="Selecionar imagem para testar", command=carregar_e_testar).pack(pady=20)
+    tk.Button(frame_principal, text="Voltar", command=mostrar_tela_inicial).pack(pady=10)
+
+def testar_modelo_cnn(nome_arquivo_modelo):
+    import tensorflow as tf
+    from tkinter import filedialog
+    from PIL import Image, ImageTk
+    import numpy as np
+    import json
+    import os
+
+    caminho_imagem = filedialog.askopenfilename(title="Escolha uma imagem para testar")
+    if not caminho_imagem:
+        return
+
+    # Carrega o modelo
+    modelo = tf.keras.models.load_model(nome_arquivo_modelo)
+
+    # Lê o JSON com nomes dos personagens
+    json_path = os.path.splitext(nome_arquivo_modelo)[0] + ".json"
+    with open(json_path, "r") as f:
+        dados = json.load(f)
+    personagem1 = dados["personagem1"]
+    personagem2 = dados["personagem2"]
+
+    # Prepara a imagem
+    imagem = Image.open(caminho_imagem).convert("RGB")
+    imagem = imagem.resize((64, 64))
+    imagem_array = np.array(imagem) / 255.0
+    imagem_array = imagem_array.reshape((1, 64, 64, 3))
+
+    resultado = modelo.predict(imagem_array)[0][0]
+    classe_0 = dados["classe_0"]
+    classe_1 = dados["classe_1"]
+    predicao = classe_1 if resultado >= 0.5 else classe_0
+
+
+    # Mostra na interface
+    limpar_tela()
+    tk.Label(frame_principal, text="Resultado da Predição", font=("Arial", 16)).pack(pady=10)
+
+    imagem_tk = ImageTk.PhotoImage(imagem.resize((300, 300)))
+    canvas = tk.Canvas(frame_principal, width=300, height=300)
+    canvas.pack()
+    canvas.create_image(0, 0, anchor="nw", image=imagem_tk)
+    canvas.image = imagem_tk
+
+    tk.Label(frame_principal, text=f"Predição: {predicao}", font=("Arial", 14, "bold")).pack(pady=10)
+    tk.Label(frame_principal, text=f"Probabilidade: {resultado:.4f}", font=("Arial", 12)).pack(pady=5)
+
+    botoes = tk.Frame(frame_principal)
+    botoes.pack(pady=20)
+
+    tk.Button(botoes, text="🏠 Voltar ao início", command=mostrar_tela_inicial).pack(side="left", padx=10)
 
 
 # Inicializa a tela inicial

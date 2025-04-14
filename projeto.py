@@ -28,8 +28,8 @@ def mostrar_tela_inicial():
     limpar_tela()
     tk.Label(frame_principal, text="Menu Principal", font=("Arial", 18)).pack(pady=30)
 
-    tk.Button(frame_principal, text="Criar modelo baseado em RGB", width=20, command=mostrar_tela_criar_modelo).pack(pady=10)
-    tk.Button(frame_principal, text="Testar modelo RGB", width=20, command=mostrar_tela_testar_modelo).pack(pady=10)
+    tk.Button(frame_principal, text="Criar modelo baseado em RGB", width=30, command=mostrar_tela_criar_modelo).pack(pady=10)
+    tk.Button(frame_principal, text="Testar modelo RGB", width=30, command=mostrar_tela_testar_modelo).pack(pady=10)
     tk.Button(frame_principal, text="Criar modelo rede convolucional", width=30, command=iniciar_fluxo_cnn).pack(pady=10)
     tk.Button(frame_principal, text="Testar modelo convolucional", width=30, command=mostrar_tela_testar_modelo_cnn).pack(pady=10)
 
